@@ -1,0 +1,84 @@
+使用步骤
+
+1.导入CoreData.framework
+
+2.导入文件夹coredata
+里面包含3个文件
+CoreDataStorage.h
+CoreDataStorage.m
+CoreDataStorageProtected.h
+
+3.新建class，继承CoreDataStorage
+
+4.新建的class的m文件中引入头文件CoreDataProtected.h
+
+5.在需要执行数据库操作的地方，调用父类方法scheduleBlock或者executeBlock，调用方法如下
+
+[self scheduleBlock:^{
+
+    // 这里添加数据库操作语句
+
+}];
+
+[self executeBlock:^{
+
+    // 这里添加数据库操作语句
+
+}];
+
+以上2个方法的区别在于
+scheduleBlock不会阻塞当前线程
+executeBlock会阻塞当前线程
+为了保证数据库不冲突，所有的数据库操作都应当在这2个block中执行
+更详细的block写法，请参看block语句
+
+如果需要数据库操作返回数据，参照下方代码。必须使用executeBlock，否则无返回值。
+
+__block id result;
+[self executeBlock:^{
+
+    result = // 数据库相关操作，返回结果
+
+}];
+// 此时，外部就可以使用result了
+
+
+
+
+注：
+
+1.在执行了数据库操作时，程序会自行判断数据库是否创建（数据库名为继承了CoreDataStorage的类名）。
+数据库保存地址/Application/Library/database/xxxx.sqlite
+
+2.默认数据库存储缓存为500。即当操作次数小于500次时，所有的操作均写入缓存中，并没有保存到数据库中。
+当达到500次数据库操作时，一次性写入数据库。如果要修改缓存次数，请给父类的saveThreshold赋值。
+如果业务需要立即保存入数据库，请调用以下方法,且该方法的调用必须放在scheduleBlock和executeBlock的block代码块中。
+
+- (void)save;
+
+3.可以重写以下方法，监控数据库操作的各个阶段，以及进行对应的操作
+
+- (void)didCreateManagedObjectContext;
+- (void)willSaveManagedObjectContext;
+- (void)didSaveManagedObjectContext;
+- (void)mainThreadManagedObjectContextDidMergeChanges;
+
+4.如果需要在主线程中使用managedObjectContext，请调用以下属性(该属性保证数据库操作的线程安全)
+该属性仅用于查询。不推荐其他操作使用该managedObjectContext，因为无法避免数据库冲突
+@property (strong, readonly) NSManagedObjectContext *mainThreadManagedObjectContext;
+
+5.如果执行数据库删除操作，请确保使用以下方式
+
+NSUInteger unsavedCount = [self numberOfUnsavedChanges];
+for (NSManagedObject *obj in fetchResults)
+{
+    [[self managedObjectContext] deleteObject:obj];
+
+    if (++unsavedCount >= saveThreshold){
+        [self save];
+        unsavedCount = 0;
+    }
+}
+
+
+详细说明，请查看文件CoreDataStorageProtected.h
