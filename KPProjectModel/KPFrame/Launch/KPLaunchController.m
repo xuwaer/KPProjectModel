@@ -22,6 +22,12 @@ static NSUInteger const kSplashTimeInterval = 2;
     [self showSplash];
 }
 
+- (void)dealloc
+{
+    if (_isShowSplash)
+        [self removeObserver:_splashController forKeyPath:@"isFinish" context:nil];
+}
+
 - (void)initViews
 {
     self.view.backgroundColor = [UIColor whiteColor];
@@ -52,14 +58,31 @@ static NSUInteger const kSplashTimeInterval = 2;
     if (_isShowSplash) {
         
         _splashController.view.frame = self.view.frame;
-
+        
         [UIView transitionWithView:self.view duration:0.5 options:UIViewAnimationOptionTransitionCrossDissolve animations:^{
             
             [self.view addSubview:_splashController.view];
             
         } completion:^(BOOL finished) {
             
-            [self performSelector:@selector(showGuide) withObject:nil afterDelay:(self.stayTime > kSplashTimeInterval ? self.stayTime : kSplashTimeInterval)];
+            // 添加闪屏事件监听
+            [self addObserver:_splashController forKeyPath:@"isFinish" options:NSKeyValueObservingOptionOld context:nil];
+            
+            // 设置自动关闭。最低等待2秒
+            // 如果设置等待时间为负数，则需要程序手动隐藏Splash
+            if (_stayTime >= 0) {
+                
+                __weak typeof(self) _weakSelf = self;
+                dispatch_async(dispatch_queue_create("SplashQueue", DISPATCH_QUEUE_PRIORITY_DEFAULT), ^{
+                    
+                    sleep(_stayTime > kSplashTimeInterval ? _stayTime : kSplashTimeInterval);
+                    
+                    dispatch_async_main(^{
+                        _weakSelf.splashController.isFinish = YES;
+                    });
+                });
+            }
+            
         }];
     }
     else {
@@ -71,6 +94,24 @@ static NSUInteger const kSplashTimeInterval = 2;
 {
     if (_splashController) {
         [_splashController.view removeFromSuperview];
+    }
+}
+
+- (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context
+{
+    if (![object isEqual:_splashController]) {
+        return;
+    }
+    
+    if ([keyPath isEqualToString:@"isFinish"]) {
+        return;
+    }
+    
+    
+    id value = [change objectForKey:NSKeyValueChangeNewKey];
+    if (value && [value boolValue]) {
+        
+        [self showGuide];
     }
 }
 
@@ -87,7 +128,7 @@ static NSUInteger const kSplashTimeInterval = 2;
         };
         
         _guideController.view.frame = self.view.frame;
-
+        
         [UIView transitionWithView:self.view duration:0.5 options:UIViewAnimationOptionTransitionCrossDissolve animations:^{
             
             [weakSelf.view addSubview:_guideController.view];
@@ -114,9 +155,9 @@ static NSUInteger const kSplashTimeInterval = 2;
 - (void)showMain
 {
     __weak typeof(self) weakSelf = self;
-
+    
     _mainViewController.view.frame = self.view.frame;
-
+    
     [UIView transitionWithView:self.view duration:0.7 options:UIViewAnimationOptionTransitionCrossDissolve animations:^{
         
         [weakSelf.view addSubview:_mainViewController.view];

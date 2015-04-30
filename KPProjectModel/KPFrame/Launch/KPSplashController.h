@@ -10,4 +10,6 @@
 
 @interface KPSplashController : UIViewController
 
+@property (nonatomic, assign) BOOL isFinish;
+
 @end

@@ -99,4 +99,10 @@
 #define FloatValueFromNumber(num)           (num ? num.floatValue : 0.0)
 #define DoubleValueFromNumber(num)          (num ? num.doubleValue : 0.0)
 
+
+// 线程相关
+#define dispatch_async_main(b)              dispatch_async(dispatch_get_main_queue(), b)
+#define dispatch_sync_main(b)               dispatch_sync(dispatch_get_main_queue(), b)
+
+
 #endif
