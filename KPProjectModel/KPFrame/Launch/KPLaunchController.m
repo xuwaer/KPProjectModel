@@ -25,7 +25,7 @@ static NSUInteger const kSplashTimeInterval = 2;
 - (void)dealloc
 {
     if (_isShowSplash)
-        [self removeObserver:_splashController forKeyPath:@"isFinish" context:nil];
+        [_splashController removeObserver:self forKeyPath:@"isFinish" context:nil];
 }
 
 - (void)initViews
@@ -66,7 +66,7 @@ static NSUInteger const kSplashTimeInterval = 2;
         } completion:^(BOOL finished) {
             
             // 添加闪屏事件监听
-            [self addObserver:_splashController forKeyPath:@"isFinish" options:NSKeyValueObservingOptionOld context:nil];
+            [_splashController addObserver:self forKeyPath:@"isFinish" options:NSKeyValueObservingOptionOld | NSKeyValueObservingOptionNew context:nil];
             
             // 设置自动关闭。最低等待2秒
             // 如果设置等待时间为负数，则需要程序手动隐藏Splash
@@ -103,12 +103,8 @@ static NSUInteger const kSplashTimeInterval = 2;
         return;
     }
     
-    if ([keyPath isEqualToString:@"isFinish"]) {
-        return;
-    }
-    
-    
-    id value = [change objectForKey:NSKeyValueChangeNewKey];
+    // 监听闪屏页是否结束字段isFinish
+    id value = [object valueForKey:@"isFinish"];
     if (value && [value boolValue]) {
         
         [self showGuide];
